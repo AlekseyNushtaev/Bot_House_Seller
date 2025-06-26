@@ -19,22 +19,41 @@ from db.models import Session, User, Order
 bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()
 
-TOTAL_PHOTOS = 117
-PHOTO_DIR = "photo"
-PHOTO_SECTIONS = {
-    "fasad": {"name": "Фасад", "count": 21, "path": "photo/fasad_21"},
-    "kitchen": {"name": "Кухня", "count": 7, "path": "photo/kitchen_7"},
-    "bedroom1": {"name": "Спальня №1", "count": 6, "path": "photo/bedroom_6"},
-    "bedroom2": {"name": "Спальня №2", "count": 4, "path": "photo/bedroom_4"},
-    "biliard": {"name": "Бильярдная", "count": 4, "path": "photo/biliard_4"},
-    "boiler": {"name": "Бойлерная", "count": 4, "path": "photo/boiler_4"},
-    "cokol": {"name": "Цокольный этаж", "count": 9, "path": "photo/cokol_9"},
-    "fligel": {"name": "Флигель", "count": 42, "path": "photo/fligel_42"},
-    "master": {"name": "Мастерская", "count": 6, "path": "photo/master_6"},
-    "football": {"name": "Футбольное поле", "count": 3, "path": "photo/football_3"},
-    "oka": {"name": "Ока", "count": 2, "path": "photo/oka_2"},
-    "forest": {"name": "Лес", "count": 2, "path": "photo/forest_2"},
-    "rodnik": {"name": "Родник", "count": 6, "path": "photo/rodnik_6"},
+
+PHOTO_CATEGORIES = {
+    "mainhouse": {
+        "name": "🏡 Главный дом",
+        "sections": {
+            "fasad": {"name": "🏠 Фасад", "count": 20, "path": "photo/fasad_20"},
+            "kitchen": {"name": "🍳 Кухня", "count": 7, "path": "photo/kitchen_7"},
+            "bedroom1": {"name": "🛌 Спальня №1", "count": 6, "path": "photo/bedroom_6"},
+            "bedroom2": {"name": "🛌 Спальня №2", "count": 4, "path": "photo/bedroom_4"},
+            "biliard": {"name": "🎱 Бильярдная", "count": 6, "path": "photo/biliard_6"},
+            "boiler": {"name": "⚙️ Бойлерная", "count": 4, "path": "photo/boiler_4"},
+            "cokol": {"name": "⬇️ Цокольный этаж", "count": 9, "path": "photo/cokol_9"},
+        }
+    },
+    "guesthouse": {
+        "name": "🛖 Гостевой дом",
+        "sections": {
+            "fligel": {"name": "🏠 Гостевой дом", "count": 42, "path": "photo/fligel_42"},
+            "master": {"name": "🛠️ Мастерская", "count": 6, "path": "photo/master_6"},
+        }
+    },
+    "territory": {
+        "name": "🌳 Приусадебная территория",
+        "sections": {
+            "football": {"name": "⚽ Футбольное поле", "count": 3, "path": "photo/football_3"},
+            "forest": {"name": "🌲 Лес", "count": 2, "path": "photo/forest_2"},
+        }
+    },
+    "benefits": {
+        "name": "⭐ Дополнительные преимущества",
+        "sections": {
+            "oka": {"name": "🌊 Ока", "count": 2, "path": "photo/oka_2"},
+            "rodnik": {"name": "💧 Родник", "count": 6, "path": "photo/rodnik_6"},
+        }
+    }
 }
 
 
@@ -204,33 +223,62 @@ def back_to_features_kb():
     return builder.as_markup()
 
 
-def photo_sections_kb():
-    """Клавиатура выбора раздела фото"""
+def photo_categories_kb():
+    """Клавиатура категорий фото"""
     builder = InlineKeyboardBuilder()
+    categories = list(PHOTO_CATEGORIES.items())
 
-    sections = list(PHOTO_SECTIONS.items())
-    for i in range(0, len(sections), 2):
-        # Добавляем по 2 кнопки в ряд
-        row = sections[i:i + 2]
-        for section_key, section_data in row:
-            builder.add(types.InlineKeyboardButton(
-                text=section_data["name"],
-                callback_data=f"open_section_{section_key}_1"
-            ))
+    for category_key, category_data in categories:
+        builder.add(types.InlineKeyboardButton(
+            text=category_data["name"],
+            callback_data=f"photo_category_{category_key}"
+        ))
 
-    # Кнопка "Назад"
     builder.add(types.InlineKeyboardButton(
         text="◀️ Назад",
         callback_data="back_details"
     ))
 
-    builder.adjust(2, 2, 2, 2, 2, 2, 2, 1)  # 2 кнопки в ряду, последний ряд - 1 кнопка
+    builder.adjust(1, 1, 1, 1)
+    return builder.as_markup()
+
+
+def photo_sections_kb(category: str):
+    """Клавиатура разделов внутри категории"""
+    category_data = PHOTO_CATEGORIES.get(category)
+    if not category_data:
+        return None
+
+    builder = InlineKeyboardBuilder()
+    sections = list(category_data["sections"].items())
+
+    # Определяем количество кнопок в ряду
+    columns = 2 if category == "mainhouse" else 1
+
+    for section_key, section_data in sections:
+        builder.add(types.InlineKeyboardButton(
+            text=section_data["name"],
+            callback_data=f"open_section_{section_key}_1"
+        ))
+
+    builder.add(types.InlineKeyboardButton(
+        text="◀️ Назад",
+        callback_data="photo_categories"
+    ))
+
+    builder.adjust(columns)
     return builder.as_markup()
 
 
 def section_photo_navigation_kb(section: str, photo_index: int):
     """Клавиатура для навигации по фото в разделе"""
-    section_data = PHOTO_SECTIONS.get(section)
+    # Находим раздел для определения общего количества фото
+    section_data = None
+    for category in PHOTO_CATEGORIES.values():
+        if section in category["sections"]:
+            section_data = category["sections"][section]
+            break
+
     if not section_data:
         return None
 
@@ -253,15 +301,14 @@ def section_photo_navigation_kb(section: str, photo_index: int):
     # Кнопки возврата
     builder.add(types.InlineKeyboardButton(
         text="Назад к разделам ◀️",
-        callback_data="photo_sections"
+        callback_data=f"photo_category_{next((k for k, v in PHOTO_CATEGORIES.items() if section in v['sections']), None)}"
     ))
 
-
-    # Оптимальное расположение кнопок
+    # Расположение кнопок
     if photo_index > 1 and photo_index < total_photos:
-        builder.adjust(2, 2)  # Две кнопки навигации в первом ряду, две кнопки возврата во втором
+        builder.adjust(2, 1)
     else:
-        builder.adjust(1, 2)  # Одна кнопка навигации, затем две кнопки возврата
+        builder.adjust(1, 1)
 
     return builder.as_markup()
 
@@ -804,24 +851,48 @@ async def export_command(message: types.Message):
 
 @dp.callback_query(F.data == "photos")
 async def photos_handler(callback: types.CallbackQuery):
-    """Обработчик кнопки Фото"""
+    """Обработчик кнопки Фото (первый уровень)"""
     try:
         await callback.message.edit_text(
             "Выберите раздел фото:",
-            reply_markup=photo_sections_kb()
+            reply_markup=photo_categories_kb()
         )
     except:
         await callback.message.delete()
         await callback.message.answer(
             "Выберите раздел фото:",
-            reply_markup=photo_sections_kb()
+            reply_markup=photo_categories_kb()
         )
     await callback.answer()
 
 
-@dp.callback_query(F.data == "photo_sections")
-async def photo_sections_handler(callback: types.CallbackQuery):
-    """Обработчик возврата к разделам фото"""
+@dp.callback_query(F.data.startswith("photo_category_"))
+async def photo_category_handler(callback: types.CallbackQuery):
+    """Обработчик выбора категории фото"""
+    category = callback.data.split("_")[-1]
+    category_data = PHOTO_CATEGORIES.get(category)
+
+    if not category_data:
+        await callback.answer("Категория не найдена")
+        return
+
+    try:
+        await callback.message.edit_text(
+            f"Выберите раздел ({category_data['name']}):",
+            reply_markup=photo_sections_kb(category)
+        )
+    except:
+        await callback.message.delete()
+        await callback.message.answer(
+            f"Выберите раздел ({category_data['name']}):",
+            reply_markup=photo_sections_kb(category)
+        )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "photo_categories")
+async def back_to_categories_handler(callback: types.CallbackQuery):
+    """Возврат к категориям фото"""
     await photos_handler(callback)
 
 
@@ -832,7 +903,11 @@ async def open_section_handler(callback: types.CallbackQuery):
     section = data[2]
     photo_index = int(data[3])
 
-    section_data = PHOTO_SECTIONS.get(section)
+    section_data = None
+    for category in PHOTO_CATEGORIES.values():
+        if section in category["sections"]:
+            section_data = category["sections"][section]
+            break
     if not section_data:
         await callback.answer("Раздел не найден")
         return
@@ -879,7 +954,13 @@ async def next_sec_handler(callback: types.CallbackQuery):
 
 async def open_photo_in_section(callback: types.CallbackQuery, section: str, photo_index: int):
     """Открывает фото в указанном разделе"""
-    section_data = PHOTO_SECTIONS.get(section)
+    # Находим раздел в категориях
+    section_data = None
+    for category in PHOTO_CATEGORIES.values():
+        if section in category["sections"]:
+            section_data = category["sections"][section]
+            break
+
     if not section_data:
         await callback.answer("Раздел не найден")
         return
