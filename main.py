@@ -24,7 +24,7 @@ PHOTO_CATEGORIES = {
     "mainhouse": {
         "name": "🏡 Главный дом",
         "sections": {
-            "fasad": {"name": "🏠 Фасад", "count": 20, "path": "photo/fasad_20"},
+            "fasad": {"name": "🏠 Фасад", "count": 18, "path": "photo/fasad_18"},
             "kitchen": {"name": "🍳 Кухня", "count": 7, "path": "photo/kitchen_7"},
             "bedroom1": {"name": "🛌 Спальня №1", "count": 6, "path": "photo/bedroom_6"},
             "bedroom2": {"name": "🛌 Спальня №2", "count": 4, "path": "photo/bedroom_4"},
